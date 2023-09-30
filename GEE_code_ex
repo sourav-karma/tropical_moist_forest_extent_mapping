@@ -1,0 +1,215 @@
+// Get the geometry of the ROI
+var roiGeometry = LC2.geometry();
+// Set the center of the map to the ROI
+Map.centerObject(roiGeometry, 12);
+
+
+
+// merging s2 img indices
+var s2_merged = brightness_img.addBands(bais2_img).addBands(nbr_img).addBands(ndsi_img).addBands(ndvi_img).addBands(ndwi_img).addBands(swi_img);
+//rename the bands
+var s2_renamed_img = s2_merged.select(['b1', 'b1_1', 'b1_2', 'b1_3', 'b1_4', 'b1_5','b1_6'], ['brightness', 'bais2', 'nbr', 'ndsi', 'ndvi', 'ndwi', 'swi']);
+
+//merging s1 textures
+//var s1_merged = s1_median_img.addBands(s1_p10_img).addBands(s1_min_img)
+//var s1_renamed_img = s1_merged.select(['b1', 'b1_1', 'b1_2'], ['median', 'p10', 'min']);
+
+// print(s1_vv3_img.projection())
+// print(s2_merged.projection())
+
+
+//////////////    MERGE NEW BANDS HERE//////   C H A N G E                 B A N D
+
+//var s1_merged = s1_rvi_min_img.addBands(s1_rvi_max_img).addBands(s1_vh3_img).addBands(s1_vv3_img)
+
+//var s1_merged = s1_rvi_trimonthly_min_reproj.addBands(s1_vv_by_vh_trimonthly_min_reproj).addBands(s1_vh_trimonthly_min_reproj).addBands(s1_vv_trimonthly_min_reproj)
+var s1_merged = S1_LC2_VV_trimonthly_stdev_reprojTo_S2.addBands(S1_LC2_VH_trimonthly_stdev_reprojTo_S2).addBands(S1_LC2_VVbyVH_3monthsMedian_min_reproj)
+
+
+
+//var s1_renamed_img = s1_merged.select(['VV_min', 'VV_min_1', 'VH_min', 'VV_min_2'], ['rvi_min', 'vv_by_vh', 'vh', 'vv']);
+
+var s1_renamed_img = s1_merged.select(['VV_stdDev', 'VH_stdDev', 'VV_min'], ['vv', 'vh', 'vv_vh']);
+
+print(s1_renamed_img)
+
+
+//merging s1 s2
+var s1_s2_merged = s1_renamed_img.addBands(s2_renamed_img) //merged after renamed
+
+
+//var projection = s1_s2_merged.projection()
+//print(projection.crs())
+
+
+// ///////////////////    S P E C I F Y       B A N D ////////////////////
+
+// Specify the input properties for the random forest classifier
+var bands_s1s2 = ['vv', 'vh', 'vv_vh', 'bais2', 'nbr','ndsi','ndvi', 'ndwi', 'swi']; //'brightness','ndsi', 
+var bands_s2 = ['bais2',  'ndvi', 'ndwi','ndsi', 'swi','nbr'];// 'brightness', 'nbr', 'brightness', 'ndsi',
+var bands_s1 = ['vv', 'vh', 'vv_vh']; // try using the diff
+
+
+// //'vh', 'vv',
+
+// //traininig and validation split for roi 3 classes//lc2_200_400points
+var training = lc2_200_400points.randomColumn('random' ).filter(ee.Filter.lt('random', 0.8));
+var validation = lc2_200_400points.randomColumn('random'  ).filter(ee.Filter.gte('random', 0.8)); //(train test e halka poriborton korlam)
+
+
+
+/// roi LC2_training2_class works fine 
+
+// Create a training and validation dataset for S1 
+var training_dataset_s1 = s1_renamed_img.select(bands_s1).sampleRegions({
+  collection: training,
+  properties: ['class'],
+  scale: 10
+});
+
+var validation_dataset_s1 = s1_renamed_img.select(bands_s1).sampleRegions({
+  collection: validation,
+  properties: ['class'],
+  scale: 10
+});
+
+
+
+// Create a training and validation dataset for S2 
+var training_dataset_s2 = s2_renamed_img.select(bands_s2).sampleRegions({
+  collection: training,
+  properties: ['class'],
+  scale: 10
+});
+
+
+var validation_dataset_s2 = s2_renamed_img.select(bands_s2).sampleRegions({
+  collection: validation,
+  properties: ['class'],
+  scale: 10
+});
+
+
+// Create a training and validation dataset for S1 + S2 
+var training_dataset_s1s2 = s1_s2_merged.select(bands_s1s2).sampleRegions({
+  collection: training,
+  properties: ['class'],
+  scale: 10
+});
+
+var validation_dataset_s1s2 = s1_s2_merged.select(bands_s1s2).sampleRegions({
+  collection: validation,
+  properties: ['class'],
+  scale: 10
+});
+
+
+
+// Train a Random Forest classifier for each 3 type s1, s2, s1+s2
+
+//accuracy inncreased if we set RF to 300
+//s2
+var classifier_s1 = ee.Classifier.smileRandomForest(200).train({
+features: training_dataset_s1, //do not change feature name here
+classProperty: 'class',
+inputProperties: bands_s1
+});
+
+//s2
+var classifier_s2 = ee.Classifier.smileRandomForest(200).train({
+features: training_dataset_s2, //do not change feature name here
+classProperty: 'class',
+inputProperties: bands_s2
+});
+
+//s1s2
+var classifier_s1s2 = ee.Classifier.smileRandomForest(200).train({
+features: training_dataset_s1s2, //do not change feature name here
+classProperty: 'class',
+inputProperties: bands_s1s2
+});
+
+
+
+// // Classify the image with 2 class
+var classified_image_s1 = s1_renamed_img.select(bands_s1).classify(classifier_s1);
+// // Classify the image with 2 class
+var classified_image_s2 = s2_renamed_img.select(bands_s2).classify(classifier_s2);
+// // Classify the image with 2 class
+var classified_image_s1s2 = s1_s2_merged.select(bands_s1s2).classify(classifier_s1s2);
+
+
+
+///adding map
+
+Map.addLayer(classified_image_s1, {min: 1, max: 2, palette: ['green', 'red']}, 'LC2 Classified s1');
+Map.addLayer(classified_image_s2, {min: 1, max: 2, palette: ['green', 'red']}, 'LC2 Classified s2');
+Map.addLayer(classified_image_s1s2, {min: 1, max: 2, palette: ['green', 'red']}, 'LC2 Classified s1s2');
+
+
+
+
+// creating confusion matrix 
+var confusionMatrix_s1 = validation_dataset_s1.classify(classifier_s1)
+    .errorMatrix({
+        actual: 'class',
+        predicted: 'classification'
+    });
+    
+var confusionMatrix_s2 = validation_dataset_s2.classify(classifier_s2)
+    .errorMatrix({
+        actual: 'class',
+        predicted: 'classification'
+    });
+
+var confusionMatrix_s1s2 = validation_dataset_s1s2.classify(classifier_s1s2)
+    .errorMatrix({
+        actual: 'class',
+        predicted: 'classification'
+    });
+
+
+// // Print the results.
+//for s1
+print('Confusion matrix s1:', confusionMatrix_s1);
+print('Overall Accuracy s1:', confusionMatrix_s1.accuracy());
+print('Producers Accuracy s1:', confusionMatrix_s1.producersAccuracy());
+print('Consumers Accuracy s1:', confusionMatrix_s1.consumersAccuracy());
+print('Kappa s1:', confusionMatrix_s1.kappa());
+
+
+
+
+//for s2
+print('Confusion matrix s2:', confusionMatrix_s2);
+print('Overall Accuracy s2:', confusionMatrix_s2.accuracy());
+print('Producers Accuracy s2:', confusionMatrix_s2.producersAccuracy());
+print('Consumers Accuracy s2:', confusionMatrix_s2.consumersAccuracy());
+print('Kappa s2:', confusionMatrix_s2.kappa());
+
+
+
+//for s3
+print('Confusion matrix s1s2:', confusionMatrix_s1s2);
+print('Overall Accuracy s1s2:', confusionMatrix_s1s2.accuracy());
+print('Producers Accuracy s1s2:', confusionMatrix_s1s2.producersAccuracy());
+print('Consumers Accuracy s1s2:', confusionMatrix_s1s2.consumersAccuracy());
+print('Kappa s1s2:', confusionMatrix_s1s2.kappa());
+
+
+
+
+// Get projection of the s2 image
+var projection_s1s2 = classified_image_s1s2.projection().getInfo()
+
+// Export the 10 composites, specifying the CRS, transform, and region.
+Export.image.toDrive({
+  image: classified_image_s2,
+  description: 'LC2_classified_image_s2_200_400points',
+  folder: 'THESIS',
+  scale: 10,
+  crs: projection_s1s2.crs,                // The base coordinate reference system of this projection (e.g. 'EPSG:4326')
+  crsTransform: projection_s1s2.transform, // The transform between projected coordinates and the base coordinate system
+  region: roiGeometry,
+  maxPixels: 1000000000
+});
