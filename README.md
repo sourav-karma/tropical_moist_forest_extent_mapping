@@ -1,1 +1,12 @@
 # tropical_moist_forest_extent_mapping
+
+Tropical moist forests are crucial for their biodiversity and ecological significance, but they are threatened by deforestation and forest degradation driven by increasing population growth, agricultural expansion, shifting cultivation, logging, and mining activities in an unsustainable manner. To effectively preserve these forests, up-to-date yearly forest extent maps are needed for research and development, carbon estimation and monitoring national forest status. However, existing remote sensing based forest cover maps are designed for wide areas, have coarse resolution and lacks details at landscape level.
+In this study, we developed local forest extent maps for five different landscapes using high-resolution Sentinel-1 (S1) based optical and Sentinel-2 (S2) based SAR sensors. Two existing optical products GFC and TMF and one SAR-based product RADD are compared at five different landscapes. Their best combination describing the actual ground situation was chosen as training samples. One-year S1 time series of four SAR features and one-year difference of six multispectral S2 indices was used for forest extent classification. Classification based on only S2 was carried out in three landscapes dominated by heterogenous landcovers, where S1, S2 and their combination were used in two other landscapes dominated by forest area according to the analysis of existing products.
+In the landscapes where both S1 and S2 are used, S1 achieved an overall accuracy of 75% to 80% while S2 achieved 87% to 91% of overall accuracy. Combining the two sensors improved overall accuracy by 1% to 2% compared to their single sensor products. Optical sensors detected forest, non-forest areas with higher confidence, but cloud-free images are scarce in tropical regions. On the other hand, although SAR performed with a lower accuracy, it can provide ground information regardless of all-weather condition. Thus, complementary use of Sentinel-1 and Sentinel-2 enhances the accuracy and temporal coverage in tropical forests. However, further investigation is needed to assess various data fusion techniques for combining optical and SAR data to fully leverage their potential benefit in tropical forests.
+
+
+
+Read full article: https://dial.uclouvain.be/memoire/ucl/object/thesis:40959
+
+Cite:	Karmakar, Sourav. Mapping the tropical moist forests extent based on combination of Sentinel-1 and Sentinel-2 satellites. Faculté des bioingénieurs, Université catholique de Louvain, 2023. Prom. : Defourny, Pierre ; Delhez, Baptiste.
+
